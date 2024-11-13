@@ -1,54 +1,65 @@
-#include <Motor/DCMotor.h>
+#include <DCMotor.h>
 
-DCMotor::DCMotor(uint8_t motorPin1, uint8_t motorPin2, uint8_t maxSpeed)
-    : _motorPin1(motorPin1), _motorPin2(motorPin2), _maxSpeed(maxSpeed) {};
+DCMotor::DCMotor(uint8_t ch1Pin, uint8_t ch2Pin, uint8_t maxSpeed)
+    : _ch1Pin(ch1Pin), _ch2Pin(ch2Pin), _maxSpeed(maxSpeed) {};
 
 void DCMotor::begin()
 {
-    pinMode(_motorPin1, OUTPUT);
-    pinMode(_motorPin2, OUTPUT);
+    pinMode(_ch1Pin, OUTPUT);
+    pinMode(_ch2Pin, OUTPUT);
+
+    Wire.begin();
+    motorPWM.begin();
+    motorPWM.setOscillatorFrequency(OscillatorFrequency);
+    motorPWM.setPWMFreq(PWMFreq);
+    Wire.setClock(Clock);
 };
 
-uint8_t DCMotor::setSpeed(uint8_t speed, bool direction = true)
+uint8_t DCMotor::setSpeed(uint8_t speed)
 {
     if (speed > _maxSpeed)
     {
         speed = _maxSpeed;
     }
 
-    _current = speed;
+    _speed = speed;
 
-    if (direction)
-    {
-        motorPWM.setPWM(_motorPin1, 0, _current);
-        motorPWM.setPWM(_motorPin2, 0, 0);
-    }
-    else
-    {
-        motorPWM.setPWM(_motorPin2, 0, _current);
-        motorPWM.setPWM(_motorPin1, 0, 0);
-    }
-
-    return _current;
+    return _speed;
 };
 
 void DCMotor::stop()
 {
     DCMotor::setSpeed(0);
+    DCMotor::start();
     return;
 };
 
-void DCMotor::softStart(u_int8_t startSpeed, u_int8_t endSpeed, bool direction)
+void DCMotor::start(uint8_t speed, bool isBackward)
 {
+    if (speed == 0)
+        speed = _speed;
+    else 
+        _speed = speed;
 
-    u_int8_t currentSpeed = startSpeed;
+    if (!isBackward)
+    {
+        motorPWM.setPWM(_ch1Pin, 0, speed);
+        motorPWM.setPWM(_ch2Pin, 0, 0);
+    }
 
-    for (u_int8_t current_duration = 0; current_duration < SOFT_START_DRURATION; current_duration + SOFT_START_STEP)
+    motorPWM.setPWM(_ch1Pin, 0, 0);
+    motorPWM.setPWM(_ch2Pin, 0, speed);
+};
+
+void DCMotor::softStart(bool isBackward)
+{
+    uint8_t speed = 0;
+
+    for (uint8_t current_duration = 0; current_duration < SOFT_START_DRURATION;)
     {
         current_duration += SOFT_START_STEP;
-
-        currentSpeed = map(current_duration, 0, SOFT_START_DRURATION, startSpeed, endSpeed);
-        DCMotor::setSpeed(currentSpeed, direction);
+        speed = map(current_duration, 0, SOFT_START_DRURATION, 0, DCMotor::getSpeed());
+        start();
         delay(10);
     }
     return;
