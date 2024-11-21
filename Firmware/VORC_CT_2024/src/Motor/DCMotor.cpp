@@ -1,66 +1,84 @@
 #include <DCMotor.h>
+#include <variable.h>
 
-DCMotor::DCMotor(uint8_t ch1Pin, uint8_t ch2Pin, uint8_t maxSpeed)
-    : _ch1Pin(ch1Pin), _ch2Pin(ch2Pin), _maxSpeed(maxSpeed) {};
+using namespace DCMotor;
 
-void DCMotor::begin()
+bool isInverted = true;
+
+void DCMotor::Initialize()
 {
-    pinMode(_ch1Pin, OUTPUT);
-    pinMode(_ch2Pin, OUTPUT);
+    driver.begin();
+    driver.setOscillatorFrequency(OSCILLATORFREQUENCY);
+    driver.setPWMFreq(MOTOR_PWMFREQ);
+}
 
-    Wire.begin();
-    motorPWM.begin();
-    motorPWM.setOscillatorFrequency(OscillatorFrequency);
-    motorPWM.setPWMFreq(PWMFreq);
-    Wire.setClock(Clock);
+MotorController::MotorController(int CH1, int CH2, int maxSpeed) : _ch1Pin(CH1),
+                                                                   _ch2Pin(CH2),
+                                                                   _maxSpeed(maxSpeed)
+{
+    _currentSpeed = 0;
+    _currentDirection = true;
 };
 
-uint8_t DCMotor::setSpeed(uint8_t speed)
+void MotorController::_setPIN(int speed, bool direction)
 {
-    if (speed > _maxSpeed)
+    if (direction)
     {
-        speed = _maxSpeed;
+        driver.setPin(_ch1Pin, speed, isInverted);
+        driver.setPin(_ch2Pin, 0, isInverted);
+    }
+    else
+    {
+        driver.setPin(_ch1Pin, 0, isInverted);
+        driver.setPin(_ch2Pin, speed, isInverted);
+    }
+}
+
+void MotorController::_softStarter(int speed, bool direction)
+{
+    int tSpeed = 0;
+
+    for (int dutyCycle = 0; dutyCycle <= MAXDUTYCYCLE; dutyCycle += INCREMENT)
+    {
+        tSpeed = map(dutyCycle, 0, MAXDUTYCYCLE, _currentSpeed, speed);
+        _setPIN(tSpeed, direction);
+        delay(DUTYCYCLESTEP);
     }
 
-    _speed = speed;
+    _currentSpeed = speed;
+    _currentDirection = direction;
+}
 
-    return _speed;
-};
-
-void DCMotor::stop()
+void MotorController::_softStopper()
 {
-    DCMotor::setSpeed(0);
-    DCMotor::start();
-    return;
-};
+    int tSpeed = 0;
 
-void DCMotor::start(uint8_t speed, bool isBackward)
-{
-    if (speed == 0)
-        speed = _speed;
-    else 
-        _speed = speed;
-
-    if (!isBackward)
+    for (int dutyCycle = MAXDUTYCYCLE; dutyCycle >= 0; dutyCycle -= INCREMENT)
     {
-        motorPWM.setPWM(_ch1Pin, 0, speed);
-        motorPWM.setPWM(_ch2Pin, 0, 0);
+        tSpeed = map(dutyCycle, 0, MAXDUTYCYCLE, 0, _currentSpeed);
+        _setPIN(tSpeed, _currentDirection);
+        delay(DUTYCYCLESTEP);
     }
 
-    motorPWM.setPWM(_ch1Pin, 0, 0);
-    motorPWM.setPWM(_ch2Pin, 0, speed);
-};
+    _setPIN(0, _currentDirection);
 
-void DCMotor::softStart(bool isBackward)
+    _currentSpeed = 0;
+    _currentDirection = true;
+}
+
+void MotorController::setSpeed(int speed, bool direction)
 {
-    uint8_t speed = 0;
-
-    for (uint8_t current_duration = 0; current_duration < SOFT_START_DRURATION;)
-    {
-        current_duration += SOFT_START_STEP;
-        speed = map(current_duration, 0, SOFT_START_DRURATION, 0, DCMotor::getSpeed());
-        start();
-        delay(10);
+    if (
+        _currentSpeed == 0 || 
+        _currentSpeed != speed && 
+        _currentDirection != direction
+    ){
+        _softStarter(speed, direction);
+    } else {
+        _setPIN(_currentSpeed, _currentDirection);
     }
-    return;
-};
+}
+
+void MotorController::stop() {
+    _softStopper();
+}
