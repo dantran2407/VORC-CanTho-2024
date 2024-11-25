@@ -20,7 +20,7 @@ MotorController::MotorController(int CH1, int CH2, int maxSpeed) : _ch1Pin(CH1),
     _currentDirection = true;
 };
 
-void MotorController::_setPIN(int speed, bool direction)
+void MotorController::setPIN(int speed, bool direction)
 {
     if (direction)
     {
@@ -34,14 +34,14 @@ void MotorController::_setPIN(int speed, bool direction)
     }
 }
 
-void MotorController::_softStarter(int speed, bool direction)
+void MotorController::_softStarter(int speed, bool direction, void (*func)(int, bool))
 {
     int tSpeed = 0;
 
     for (int dutyCycle = 0; dutyCycle <= MAXDUTYCYCLE; dutyCycle += INCREMENT)
     {
         tSpeed = map(dutyCycle, 0, MAXDUTYCYCLE, _currentSpeed, speed);
-        _setPIN(tSpeed, direction);
+        func(tSpeed, direction);
         delay(DUTYCYCLESTEP);
     }
 
@@ -49,36 +49,37 @@ void MotorController::_softStarter(int speed, bool direction)
     _currentDirection = direction;
 }
 
-void MotorController::_softStopper()
+void MotorController::_softStopper(void (*func)(int, bool))
 {
     int tSpeed = 0;
 
     for (int dutyCycle = MAXDUTYCYCLE; dutyCycle >= 0; dutyCycle -= INCREMENT)
     {
         tSpeed = map(dutyCycle, 0, MAXDUTYCYCLE, 0, _currentSpeed);
-        _setPIN(tSpeed, _currentDirection);
+        func(tSpeed, _currentDirection);
         delay(DUTYCYCLESTEP);
     }
 
-    _setPIN(0, _currentDirection);
+    setPIN(0, _currentDirection);
 
     _currentSpeed = 0;
     _currentDirection = true;
 }
 
-void MotorController::setSpeed(int speed, bool direction)
+void MotorController::setSpeed(int speed, bool direction, void (*func)(int, bool))
 {
     if (
         _currentSpeed == 0 || 
         _currentSpeed != speed && 
         _currentDirection != direction
     ){
-        _softStarter(speed, direction);
+        _softStarter(speed, direction, func);
     } else {
-        _setPIN(_currentSpeed, _currentDirection);
+        setPIN(_currentSpeed, _currentDirection);
     }
 }
 
-void MotorController::stop() {
-    _softStopper();
+
+void MotorController::stop(void (*func)(int, bool)) {
+    _softStopper(func);
 }
