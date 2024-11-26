@@ -3,18 +3,18 @@
 
 using namespace ServoControl;
 
-void ServoControl::initialize(){
+void ServoControl::initialize()
+{
     _driver.begin();
     _driver.setOscillatorFrequency(OSCILLATORFREQUENCY);
     _driver.setPWMFreq(SERVO_PWMFREQ);
 }
 
-FreeAngle::FreeAngle(int channel, int neutralPulse, int rangePulse)
-{
-    _channel = channel;
-    _neutralPulse = neutralPulse;
-    _rangePulse = rangePulse;
-};
+FreeAngle::FreeAngle(int channel, int neutralPulse, int rangePulse) : 
+    _channel(channel),
+    _neutralPulse(neutralPulse), 
+    _rangePulse(rangePulse) 
+{};
 
 void FreeAngle::setSpeed(float speed)
 {
@@ -27,12 +27,11 @@ void FreeAngle::setSpeed(float speed)
     _driver.setPWM(_channel, 0, pulseLength);
 };
 
-FixedAngle::FixedAngle(int channel, int minPulse, int maxPulse)
-{
-    _channel = channel;
-    _minPulse = minPulse;
-    _maxPulse = maxPulse;
-};
+FixedAngle::FixedAngle(int channel, int minPulse, int maxPulse): 
+    _channel(channel), 
+    _minPulse(minPulse),
+    _maxPulse(maxPulse)
+{};
 
 void FixedAngle::setAngle(float angle)
 {
@@ -42,5 +41,5 @@ void FixedAngle::setAngle(float angle)
         angle = 180;
 
     int pulseLength = _minPulse + (angle / 180.0) * (_maxPulse - _minPulse);
-    _driver.setPWM(_channel, 0, pulseLength);
+    _driver.setPWM(_channel, 0, pulseLength*1.62);
 }

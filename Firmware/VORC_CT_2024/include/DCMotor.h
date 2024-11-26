@@ -16,12 +16,12 @@ namespace DCMotor
             int _currentDirection;
             int _maxSpeed;
 
-            void _softStarter(int speed, bool direction);
-            void _softStopper();
-            void _setPIN(int speed, bool direction);
+            void _softStarter(int speed, bool direction, void (*func)(int, bool));
+            void _softStopper(void (*func)(int, bool));
         public:
             MotorController(int ch1Pin, int ch2Pin, int maxSpeed);
-            void setSpeed(int speed, bool direction);
-            void stop();
+            void setPIN(int speed, bool direction);
+            void setSpeed(int speed, bool direction, void (*func)(int, bool));
+            void stop(void (*func)(int, bool));
     };
 } 
